@@ -1,8 +1,13 @@
 import midicontroller
+import drumsequencer
 import module
 import grid
+import oscoutput
 
+o = oscoutput.get("oscoutput")
 m = midicontroller.get("midicontroller")
+
+me.connect_osc_input(6969)
 
                 # arturia minilab mkii pad addresses
 hexoffset = 112 # begin at 0x70, or 112 in dec, so we need to add that
@@ -33,7 +38,7 @@ if n_length == 5:
     n_length += 1
    
 # this number, c_length (cycle length), is how many pads
-# you would like the sequence to use, between 2 and 16
+# you would like the sequencer to use, between 2 and 16
 
 c_length = 8
 
@@ -59,46 +64,66 @@ active_mem = 0
 
 
 # these values designate the colors for
-# when the pad is "on", "off", "seqon", and "seqoff".
+# when the pad is "on", "off", "seqon", 
+# "seqoff", and the bank switches.
 
-oncolor  = 0x11
-offcolor = 0x14
-seqon    = 0x7F
-seqoff   = 0x04
+colorNone   = 0x00
+colorRed    = 0x01
+colorGreen  = 0x04
+colorYellow = 0x05
+colorBlue   = 0x10
+colorPurple = 0x11
+colorCyan   = 0x14
+colorWhite  = 0x7F
 
-# 0x00 = off,    0x01 = red,  0x04 = green
-# 0x05 = yellow, 0x10 = blue, 0x11 = magenta
-#        0x14 = cyan, 0x7F = white
-
+oncolor   = colorPurple
+offcolor  = colorCyan
+seqon     = colorWhite
+seqoff    = colorGreen
+bankcolor = colorBlue
 # for best results : in the Arturia MIDI Control Center:
 # 1. set all your pads to TOGGLE, not GATE
 # 2. set PAD OFF BACKLIGHT to OFF, and
 # 3. set each pad color to be the same as the "seqoff" color.
 
 sysmsg = [0x00, 0x20, 0x6B, 0x7F, 0x42, 0x02, 0x00, 0x10, 0x00, 0x00]
-# this list is the system exclusive message, in bytes, which will
+# this list is the system exclusive message which will
 # be sent to the keyboard. the first 8 instructions are more or
 # less generic and not important for what we will be doing. the
 # last two are pad address and color respectively.
 
+def refresh():
+    for x in range(16 - c_length):
+        if x <= membanks:
+            sysmsg[-2] = 16 - membanks + hexoffset + x
+            sysmsg[-1] = 0x00  
+            m.send_sysex(bytes(sysmsg))
+        else:
+            break        
+    sysmsg[-2] = hexoffset + c_length
+    sysmsg[-1] = bankcolor
+    m.send_sysex(bytes(sysmsg))
+
+refresh()
+# this initializes the lights for the bank switches
+# so they actually reflect the correct initial bank
+
 ############################################
 
-def on_note(note, velocity):  
+def on_note(note, velocity): 
     global active_mem
-    me.output(noteoffset)
-    me.output(note)
-    me.output(16 - c_length)
+    o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
     if note >= c_length + noteoffset:
         for x in range(16 - c_length):
             if x <= membanks:
                 sysmsg[-2] = 16 - membanks + hexoffset + x
-                sysmsg[-1] = 0x00  
+                sysmsg[-1] = colorNone  
                 m.send_sysex(bytes(sysmsg))
             else:
                break
         active_mem = note - noteoffset - c_length
         sysmsg[-2] = hexoffset + note - noteoffset
-        sysmsg[-1] = seqoff  
+        sysmsg[-1] = bankcolor  
         m.send_sysex(bytes(sysmsg))
         me.output(sysmsg)
         return active_mem
@@ -108,23 +133,25 @@ def on_note(note, velocity):
                sysmsg[-2] = 0x70 + note - noteoffset
                sysmsg[-1] = offcolor  
                m.send_sysex(bytes(sysmsg))
-               me.output(sysmsg)
                return padmem[active_mem]
         else:
             sysmsg[-2] = 0x70 + note - noteoffset
-            sysmsg[-1] = seqoff  
+            sysmsg[-1] = seqoff 
             padmem[active_mem][note - noteoffset]  = 2
             m.send_sysex(bytes(sysmsg))
-            me.output(padmem[active_mem])
             return padmem[active_mem]
     else:
         return
 
 def on_pulse():
+    global active_mem
+    o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
     m = midicontroller.get("midicontroller")
     g = grid.get("grid")
     g.set_grid(c_length, membanks)
-    
+    for x in range(membanks):
+       g.set_label(x, str(x))
+
     hit = bespoke.get_step(n_length) % c_length
     lastpos = hit - 1
     if lastpos < 0:
@@ -201,5 +228,5 @@ def on_pulse():
         off = [i for i, x in enumerate(padmem[m]) if x != 2]
         for n in range(len(off)):
             g.set(off[n], m, 0) 
-    
     return padmem
+    
