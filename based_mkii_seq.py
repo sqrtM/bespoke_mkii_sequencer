@@ -2,10 +2,12 @@ import midicontroller
 import drumsequencer
 import module
 import grid
-import oscoutput
+import drumsequencer
+#import oscoutput
 
-o = oscoutput.get("oscoutput")
+#o = oscoutput.get("oscoutput")
 m = midicontroller.get("midicontroller")
+d = drumsequencer.get("drumsequencer")
 
 me.connect_osc_input(6969)
 
@@ -112,7 +114,7 @@ refresh()
 
 def on_note(note, velocity): 
     global active_mem
-    o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
+    #o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
     if note >= c_length + noteoffset:
         for x in range(16 - c_length):
             if x <= membanks:
@@ -145,7 +147,7 @@ def on_note(note, velocity):
 
 def on_pulse():
     global active_mem
-    o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
+    #o.send_string("/go", str(active_mem) + ", " + str(padmem[active_mem]))
     m = midicontroller.get("midicontroller")
     g = grid.get("grid")
     g.set_grid(c_length, membanks)
@@ -222,11 +224,13 @@ def on_pulse():
        if 2 in padmem[j]:
           col = [i for i, x in enumerate(padmem[j]) if x == 2]
           for k in range(len(col)):
-              g.set(col[k], j, 1)
+              g.set(col[k], j, 127)
+              d.set(col[k], j, 127)
     
     for m in range(membanks):
         off = [i for i, x in enumerate(padmem[m]) if x != 2]
         for n in range(len(off)):
             g.set(off[n], m, 0) 
+            d.set(off[n], m, 0) 
     return padmem
     
