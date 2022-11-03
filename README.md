@@ -1,2 +1,6 @@
 # bespoke_mkii_sequencer
-a visual sequencer script for use with bespoke synth, sonic pi, and an arturia minilab mkii
+a visual sequencer script for use with bespoke synth, (optionally sonic pi), and an arturia minilab mkii
+
+![image](https://user-images.githubusercontent.com/79169638/199831845-3c9067d1-39c8-4f38-a9ea-139321dda0a1.png)
+
+complete with an example bsk for testing. should work with any arbitrary I/O system as long as the recieving end can accept and parse an array. happy playin
